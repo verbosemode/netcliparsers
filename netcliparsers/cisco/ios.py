@@ -4,7 +4,7 @@ from functools import partial
 # Only for development
 #from pyparsing import *
 from pyparsing import alphas, alphanums, nums
-from pyparsing import Suppress, Keyword, Word, oneOf, ZeroOrMore, OneOrMore, Group, Combine, StringEnd, SkipTo
+from pyparsing import Suppress, Keyword, Word, oneOf, ZeroOrMore, OneOrMore, Group, Combine, StringEnd, SkipTo, Optional
 
 
 def show_class_map():
@@ -66,7 +66,6 @@ def show_cdp_neighbor_detail():
     entryaddrs = Suppress(Keyword('Entry address(es):')) + OneOrMore(ipaddrs('ipaddress'))
 
     platform = Word(alphanums, bodyChars=alphanums + '- ') 
-    # FIXME Strip whitespace off string end
     capabilities = Word(alphanums, bodyChars=alphanums + '- ') 
     platformcapabilities = Suppress(Keyword('Platform:')) + platform('platform') + Suppress(',') +\
             Keyword('Capabilities:') + capabilities('capabilities').setParseAction(lambda tokens: tokens[0].strip())
@@ -85,8 +84,11 @@ def show_cdp_neighbor_detail():
 
     managementaddresses = Suppress('Management address(es):') + ZeroOrMore(ipaddrs)
 
+    unidirectionalmodestatus = Word(alphas)
+    unidirectionalmode = Suppress(Keyword('Unidirectional Mode:')) + unidirectionalmodestatus('unidirectionalmode')
+
     cdpentry = entrystart + deviceid + entryaddrs + platformcapabilities + interfaces + holdtime + version + techsupport +\
-               SkipTo('Management address(es):') + managementaddresses
+               SkipTo('Management address(es):') + managementaddresses + Optional(unidirectionalmode)
 
     parser = OneOrMore(Group(cdpentry)) + StringEnd()
 
