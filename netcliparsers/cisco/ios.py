@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 
+from functools import partial
 # Only for development
-from pyparsing import *
-#from pyparsing import Suppress, Keyword, Word, alphanums, nums, oneOf, OneOrMore, Group, StringEnd
+#from pyparsing import *
+from pyparsing import alphas, alphanums, nums
+from pyparsing import Suppress, Keyword, Word, oneOf, ZeroOrMore, OneOrMore, Group, Combine, StringEnd, SkipTo
+
 
 def show_class_map():
+    """
+    """
     classmapstart = Suppress(Keyword('Class Map'))
 
     matchtype = oneOf(['match-all', 'match-any'])
@@ -35,7 +40,24 @@ def show_class_map():
     return parser
 
 
+parse_show_class_map = partial(lambda x: show_class_map().parseString(x))
+
+
 def show_cdp_neighbor_detail():
+    """
+    Example
+    -------
+
+    for e in parser.parseString(text):
+        print("{deviceid} {localinterface} {remoteinterface}".format(**e)):
+
+    ap1.example.com FastEthernet0/25 GigabitEthernet0.1
+    ap2.example.com FastEthernet0/37 GigabitEthernet0.1
+    sw1.example.com GigabitEthernet0/1 GigabitEthernet2/4
+    sw2.example.com GigabitEthernet0/2 GigabitEthernet0/26
+    """
+
+    entrystart = Suppress(Word('-'))
     hostname = Word(alphanums, bodyChars=alphanums + '_-.')
     deviceid = Suppress(Keyword('Device ID:')) + hostname('deviceid')
 
@@ -47,7 +69,7 @@ def show_cdp_neighbor_detail():
     # FIXME Strip whitespace off string end
     capabilities = Word(alphanums, bodyChars=alphanums + '- ') 
     platformcapabilities = Suppress(Keyword('Platform:')) + platform('platform') + Suppress(',') +\
-                           Keyword('Capabilities:') + capabilities('capabilities')
+            Keyword('Capabilities:') + capabilities('capabilities').setParseAction(lambda tokens: tokens[0].strip())
 
     interface = Word(alphas, bodyChars=alphanums + '/.')
     interfaces = Suppress(Keyword('Interface:')) + interface('localinterface') + Suppress(',') +\
@@ -56,8 +78,19 @@ def show_cdp_neighbor_detail():
     holdtimenum = Word(nums).setParseAction(lambda tokens: int(tokens[0]))
     holdtime = Suppress('Holdtime') + Suppress(':') + holdtimenum('holdtime') + Suppress('sec')
 
-    cdpentry = deviceid + entryaddrs + platformcapabilities + interfaces + holdtime
+    versionstr = Word(alphanums + ' .,-_()')
+    version = Suppress('Version') + Suppress(':') + versionstr('version')
 
-    parser = OneOrMore(cdpentry)
+    techsupport = Suppress('Technical Support:')
+
+    managementaddresses = Suppress('Management address(es):') + ZeroOrMore(ipaddrs)
+
+    cdpentry = entrystart + deviceid + entryaddrs + platformcapabilities + interfaces + holdtime + version + techsupport +\
+               SkipTo('Management address(es):') + managementaddresses
+
+    parser = OneOrMore(Group(cdpentry)) + StringEnd()
 
     return parser
+
+
+parse_show_cdp_neighbor_detail = partial(lambda x: show_cdp_neighbor_detail().parseString(x))

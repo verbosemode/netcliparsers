@@ -7,7 +7,28 @@ This will become a library of parsers based on `pyparsing <http://pyparsing.wiki
 Usage Examples
 --------------
 
-soon (tm)
+Functions return a pyparsing parser instance.
+
+::
+
+    from netcliparsers.cisco.ios import show_cdp_neighbor_detail
+
+    parser = show_cdp_neighbor_detail()
+    for e in parser.parseString(text):
+        print("{deviceid} {localinterface} {remoteinterface}".format(**e)):
+
+    ap1.example.com FastEthernet0/25 GigabitEthernet0.1
+    ap2.example.com FastEthernet0/37 GigabitEthernet0.1
+    sw1.example.com GigabitEthernet0/1 GigabitEthernet2/4
+    sw2.example.com GigabitEthernet0/2 GigabitEthernet0/26
+
+
+For convenience all functions also exists with a prepended 'parse_'.
+
+::
+
+    for e in parse_show_cdp_neighbor_detail(text)
+        print(e['deviceid'])
 
 
 Windows
