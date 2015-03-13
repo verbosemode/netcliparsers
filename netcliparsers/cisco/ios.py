@@ -96,3 +96,37 @@ def show_cdp_neighbor_detail():
 
 
 parse_show_cdp_neighbor_detail = partial(lambda x: show_cdp_neighbor_detail().parseString(x))
+
+
+
+def show_ip_interface():
+    interface = Word(alphas, bodyChars=alphanums + '/.')
+    interfacestatus = oneOf(['up', 'down'])
+    linestatus = oneOf(['up', 'down'])
+    ipaddress = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums))
+    ipprefix = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '/' + Word(nums))
+    mtu = Word(nums).setParseAction(lambda tokens: int(tokens[0]))
+
+    # TODO make sure 'helperaddress' is a list and contains zoer or more items. Parser user shouldn't need to
+    # check if key exists in data structure
+    # FIXME Fails with multiple helper addresses
+    helperaddress = Suppress('Helper address' | 'Helper addresses') +\
+                    ('is not set' | ('is' + ipaddress('helperaddress')) | ('are' + OneOrMore(ipaddress)))
+
+    directedbroacastsstate = oneOf(['enabled', 'disabled'])
+    directedbroadcastsacl = ' - but restricted by access list 110'
+    directedbroadcasts = Suppress('Directed broadcast forwarding is') + directedbroacastsstate('directedbroadcasts')
+
+    parser = interface('interface') + Suppress('is') + interfacestatus('interfacestatus') + Suppress(',') +\
+             Suppress('line protocol is') + linestatus('linestatus') +\
+             Suppress('Internet address is') + ipprefix('ipaddress') +\
+             Suppress('Broadcast address is') + ipaddress('broadcastaddress')+\
+             Suppress('Address determined by setup command')+\
+             Suppress('MTU is') + mtu('mtu') + Suppress('bytes') +\
+             helperaddress
+
+
+             
+    
+
+

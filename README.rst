@@ -23,7 +23,7 @@ Functions return a pyparsing parser instance.
     sw2.example.com GigabitEthernet0/2 GigabitEthernet0/26
 
 
-For convenience all functions also exists with a prepended 'parse_'.
+For convenience all functions also exist with a prepended 'parse_'.
 
 ::
 
