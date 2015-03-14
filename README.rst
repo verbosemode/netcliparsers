@@ -45,11 +45,19 @@ TODO
 
 * PyPi if the topics above are implemented
 * Use Sphinx/autodoc for generating documentation under docs/
+* Move some parser building blocks for IP addresses and prefixes to a separate
+  file to make them reusable
 
 
 How to contribute
 -----------------
 
+* A parser should parse CLI output from top to bottom, excluding the command
+  prompt
+* Parsers should be as strict as possible to ensure they fail instead of
+  returing data that can not be trusted
+* However it is ok to use SkipTo for example during development of a new
+  parser or to skip irrelevant output
 * Code should follow PEP8
 * If you add CLI output to the tests (netcliparsers/tests/data), make sure you
   are sanitizing the output to not leak any data of your network equipment.
