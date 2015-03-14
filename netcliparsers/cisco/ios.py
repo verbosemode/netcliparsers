@@ -20,7 +20,7 @@ from functools import partial
 # Only for development
 #from pyparsing import *
 from pyparsing import alphas, alphanums, nums
-from pyparsing import Suppress, Keyword, Word, oneOf, ZeroOrMore, OneOrMore, Group, Combine, StringEnd, SkipTo, Optional
+from pyparsing import Suppress, Keyword, Word, oneOf, ZeroOrMore, OneOrMore, Group, Combine, StringEnd, SkipTo, Optional, ParseException
 
 
 def show_class_map():
@@ -115,12 +115,23 @@ parse_show_cdp_neighbor_detail = partial(lambda x: show_cdp_neighbor_detail().pa
 
 
 def show_ip_interface():
+    # Move to parser building blocks file
+    def parse_action_comma_list(tokens):
+        try:
+            l = tokens[0].split(',')
+
+            return [e.strip() for e in l]
+        except ValueError, ve:
+            raise ParseException("Invalid comma list (%s)" % tokens[0])
+
     # TODO move this to a seperate parser building blocks file
     # TODO combine them to IOS interface states??
     state_enabled_disabled = oneOf(['enabled', 'disabled'])
     state_always_never = oneOf(['always', 'never'])
 
-    interface = Word(alphas, bodyChars=alphanums + '/.')
+    comma_list = Word(alphanums, bodyChars=alphanums + ', ').setParseAction(parse_action_comma_list)
+
+    interface_name = Word(alphas, bodyChars=alphanums + '/.-')
     interface_status = oneOf(['up', 'down', 'deleted'])
     line_status = oneOf(['up', 'down'])
     # TODO move this to a seperate parser building blocks file
@@ -159,11 +170,11 @@ def show_ip_interface():
     icmp_unreachables = Suppress('ICMP unreachables are') + state_always_never('icmp_unreachables') + Suppress('sent')
     icmp_mask_replies = Suppress('ICMP mask replies are') + state_always_never('icmp_maskreplies') + Suppress('sent')
 
-    ipfastswitching = Suppress('IP fast switching is') + state_enabled_disabled('ipfastswitching')
-    ipfastswitching_sameinterface = Suppress('IP fast switching on the same interface is') + state_enabled_disabled('ipfastswitching_sameinterface')
-    ipflowswitching = Suppress('IP Flow switching is') + state_enabled_disabled('ipflowswitching')
-    ipcefswitching = Suppress('IP CEF switching is') + state_enabled_disabled('ipcefswitching')
-    ipcefswitching_turboverctor = Suppress('IP CEF switching turbo vector')
+    ip_fast_switching = Suppress('IP fast switching is') + state_enabled_disabled('ip_fast_switching')
+    ip_fast_switching_sameinterface = Suppress('IP fast switching on the same interface is') + state_enabled_disabled('ip_fast_switching_sameinterface')
+    ip_flow_switching = Suppress('IP Flow switching is') + state_enabled_disabled('ip_flow_switching')
+    ip_cef_switching = Suppress('IP CEF switching is') + state_enabled_disabled('ip_cef_switching')
+    ip_cef_switching_turboverctor = Suppress('IP CEF switching turbo vector')
 
     # TODO What are valid chars for VRF names?
     vrfname = Word(alphanums)
@@ -174,8 +185,8 @@ def show_ip_interface():
                                  state_enabled_disabled('ip_multicast_fastswitching')
     ip_multicast_distributed_fastswitching = Suppress('IP multicast distributed fast switching is') +\
                                              state_enabled_disabled('ip_multicast_distributed_fastswitching')
-    # TODO
-    ip_routecache_flags = Suppress('IP route-cache flags are Fast, CEF')
+    # TODO Custom parse Action
+    ip_routecache_flags = Suppress('IP route-cache flags are') + comma_list('ip_routecache_flags')
     routerdiscovery = Suppress('Router Discovery is') + state_enabled_disabled('routerdiscovery')
     ip_output_accounting = Suppress('IP output packet accounting is') + state_enabled_disabled('ip_output_accounting')
     ip_violation_accounting = Suppress('IP access violation accounting is') + state_enabled_disabled('ip_violation_accounting')
@@ -187,10 +198,9 @@ def show_ip_interface():
     nat = Suppress('Network address translation is disabled')
     # TODO
     bgppolicy = Suppress('BGP Policy Mapping is disabled')
-    # TODO
-    input_features = Suppress('Input features: MCI Check')
-    # TODO
-    output_features = Suppress('Output features: CCE Post NAT Classification')
+
+    input_features = Suppress('Input features:') + comma_list('input_features')
+    output_features = Suppress('Output features:') + comma_list('output_features')
     # TODO
     wccp_outbound = Suppress('WCCP Redirect outbound is disabled')
     # TODO
@@ -198,10 +208,10 @@ def show_ip_interface():
     # TODO
     wccp_exclude = Suppress('WCCP Redirect exclude is disabled')
 
-    # TODO account for multiple interfaces
     # TODO Test IPv6
     # TODO Test ip disabled -> "Internet protocol processing disabled"
-    parser = interface('interface') + Suppress('is') + Optional(Suppress('administratively')) + interfacestatus('interface_status') + Suppress(',') +\
+    interface = interface_name('interface_name') + Suppress('is') + Optional(Suppress('administratively')) +\
+                                             interface_status('interface_status') + Suppress(',') +\
              Suppress('line protocol is') + line_status('line_status') +\
              Suppress('Internet address is') + ipprefix('ipaddress') +\
              Suppress('Broadcast address is') + ipaddress('broadcast_address')+\
@@ -218,11 +228,11 @@ def show_ip_interface():
              icmp_redirects +\
              icmp_unreachables +\
              icmp_mask_replies +\
-             ipfastswitching +\
-             ipfastswitching_sameinterface +\
-             ipflowswitching +\
-             ipcefswitching +\
-             ipcefswitching_turboverctor +\
+             ip_fast_switching +\
+             ip_fast_switching_sameinterface +\
+             ip_flow_switching +\
+             ip_cef_switching +\
+             ip_cef_switching_turboverctor +\
              Optional(vrf) +\
              Optional(downstreamvrf) +\
              ip_multicast_fastswitching +\
@@ -237,10 +247,18 @@ def show_ip_interface():
              nat +\
              bgppolicy +\
              input_features +\
-             output_features +\
+             Optional(output_features) +\
              wccp_outbound +\
              wccp_inbound +\
              wccp_exclude
+
+    interface_ip_disabled = interface_name('interface_name') + Suppress('is') + Optional(Suppress('administratively')) +\
+                                                          interface_status('interface_status') +\
+                                                          Suppress(',') +\
+                                                          Suppress('line protocol is') + line_status('line_status') +\
+                            Suppress('Internet protocol processing') + state_enabled_disabled('ip_state')
+
+    parser = OneOrMore(Group(interface) | Group(interface_ip_disabled)) + StringEnd()
 
     return parser
 
