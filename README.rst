@@ -23,7 +23,7 @@ Functions return a pyparsing parser instance.
     sw2.example.com GigabitEthernet0/2 GigabitEthernet0/26
 
 
-For convenience all functions also exist with a prepended 'parse_'.
+For convenience all functions also exist with a prepended *parse_*.
 
 ::
 
@@ -31,11 +31,42 @@ For convenience all functions also exist with a prepended 'parse_'.
         print(e['deviceid'])
 
 
+TODO
+----
+
+* Tests
+
+  - CLI output examples: netcliparsers/tests/data
+
+* Version number scheme
+* Should be Python >= 2.7 compatible
+
+  - Pyparsing is Python 3 compatible
+
+* PyPi if the topics above are implemented
+* Use Sphinx/autodoc for generating documentation under docs/
+
+
+How to contribute
+-----------------
+
+* Code should follow PEP8
+* If you add CLI output to the tests (netcliparsers/tests/data), make sure you
+  are sanitizing the output to not leak any data of your network equipment.
+* Feel free to fix grammer mistakes. I'm not a native English speaker
+* Make a pull request
+
+
 Windows
 -------
 
 If you run the setup on Windows you'll need to have git installed. Pbr tries to figure out the version number via git. I'll need to fix this "soon".
 
+
+License
+-------
+
+GPLv3
 
 Feedback
 --------
