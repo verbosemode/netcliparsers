@@ -98,7 +98,6 @@ def show_cdp_neighbor_detail():
 parse_show_cdp_neighbor_detail = partial(lambda x: show_cdp_neighbor_detail().parseString(x))
 
 
-
 def show_ip_interface():
     interface = Word(alphas, bodyChars=alphanums + '/.')
     interfacestatus = oneOf(['up', 'down'])
@@ -107,7 +106,7 @@ def show_ip_interface():
     ipprefix = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '/' + Word(nums))
     mtu = Word(nums).setParseAction(lambda tokens: int(tokens[0]))
 
-    # TODO make sure 'helperaddress' is a list and contains zoer or more items. Parser user shouldn't need to
+    # TODO make sure 'helperaddress' is a list and contains zero or more items. Parser user shouldn't need to
     # check if key exists in data structure
     # FIXME Fails with multiple helper addresses
     helperaddress = Suppress('Helper address' | 'Helper addresses') +\
@@ -124,9 +123,4 @@ def show_ip_interface():
              Suppress('Address determined by setup command')+\
              Suppress('MTU is') + mtu('mtu') + Suppress('bytes') +\
              helperaddress
-
-
-             
-    
-
 
