@@ -115,28 +115,134 @@ parse_show_cdp_neighbor_detail = partial(lambda x: show_cdp_neighbor_detail().pa
 
 
 def show_ip_interface():
+    # TODO move this to a seperate parser building blocks file
+    # TODO combine them to IOS interface states??
+    state_enabled_disabled = oneOf(['enabled', 'disabled'])
+    state_always_never = oneOf(['always', 'never'])
+
     interface = Word(alphas, bodyChars=alphanums + '/.')
-    interfacestatus = oneOf(['up', 'down'])
-    linestatus = oneOf(['up', 'down'])
+    interface_status = oneOf(['up', 'down', 'deleted'])
+    line_status = oneOf(['up', 'down'])
+    # TODO move this to a seperate parser building blocks file
     ipaddress = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums))
+    # TODO move this to a seperate parser building blocks file
     ipprefix = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '/' + Word(nums))
     mtu = Word(nums).setParseAction(lambda tokens: int(tokens[0]))
 
     # TODO make sure 'helperaddress' is a list and contains zero or more items. Parser user shouldn't need to
     # check if key exists in data structure
     # FIXME Fails with multiple helper addresses
-    helperaddress = Suppress('Helper address' | 'Helper addresses') +\
-                    ('is not set' | ('is' + ipaddress('helperaddress')) | ('are' + OneOrMore(ipaddress)))
+    # helperaddress = Suppress('Helper address') | Suppress('Helper addresses') +\
+    #                 'is not set' | ('is' + ipaddress('helperaddress'))
+    # helper_address = Suppress('Helper address') | Suppress('Helper addresses') +\
+    #                 ('is not set' | ('is' + ipaddress('helperaddress')) | ('are' + OneOrMore(ipaddress)))
+    helper_address = Suppress('Helper address is not set')
 
-    directedbroacastsstate = oneOf(['enabled', 'disabled'])
-    directedbroadcastsacl = ' - but restricted by access list 110'
-    directedbroadcasts = Suppress('Directed broadcast forwarding is') + directedbroacastsstate('directedbroadcasts')
+    # FIXME
+    directed_broadcasts_acl = ' - but restricted by access list 111'
+    directed_broadcasts = Suppress('Directed broadcast forwarding is') + state_enabled_disabled('directed_broadcasts')
 
-    parser = interface('interface') + Suppress('is') + interfacestatus('interfacestatus') + Suppress(',') +\
-             Suppress('line protocol is') + linestatus('linestatus') +\
+    # TODO
+    outgoing_acl = Suppress('Outgoing access list is not set')
+    # TODO
+    inbound_acl = Suppress('Inbound  access list is not set')
+
+    proxyarp = Suppress('Proxy ARP is') + state_enabled_disabled('proxyarp')
+
+    local_proxyarp = Suppress('Local Proxy ARP is') + state_enabled_disabled('local_proxyarp')
+
+    # TODO
+    securitylevel = Suppress('Security level is default')
+    splithorizon = Suppress('Split horizon is') + state_enabled_disabled('splithorizon')
+
+    icmp_redirects = Suppress('ICMP redirects are') + state_always_never('icmp_redirects') + Suppress('sent')
+    icmp_unreachables = Suppress('ICMP unreachables are') + state_always_never('icmp_unreachables') + Suppress('sent')
+    icmp_mask_replies = Suppress('ICMP mask replies are') + state_always_never('icmp_maskreplies') + Suppress('sent')
+
+    ipfastswitching = Suppress('IP fast switching is') + state_enabled_disabled('ipfastswitching')
+    ipfastswitching_sameinterface = Suppress('IP fast switching on the same interface is') + state_enabled_disabled('ipfastswitching_sameinterface')
+    ipflowswitching = Suppress('IP Flow switching is') + state_enabled_disabled('ipflowswitching')
+    ipcefswitching = Suppress('IP CEF switching is') + state_enabled_disabled('ipcefswitching')
+    ipcefswitching_turboverctor = Suppress('IP CEF switching turbo vector')
+
+    # TODO What are valid chars for VRF names?
+    vrfname = Word(alphanums)
+    vrf = Suppress('VPN Routing/Forwarding "') + Optional(vrfname('vrf')) + Suppress('"')
+    downstreamvrf = Suppress('Downstream VPN Routing/Forwarding "') + Optional(vrfname('downstreamvrf')) + Suppress('"')
+
+    ip_multicast_fastswitching = Suppress('IP multicast fast switching is') +\
+                                 state_enabled_disabled('ip_multicast_fastswitching')
+    ip_multicast_distributed_fastswitching = Suppress('IP multicast distributed fast switching is') +\
+                                             state_enabled_disabled('ip_multicast_distributed_fastswitching')
+    # TODO
+    ip_routecache_flags = Suppress('IP route-cache flags are Fast, CEF')
+    routerdiscovery = Suppress('Router Discovery is') + state_enabled_disabled('routerdiscovery')
+    ip_output_accounting = Suppress('IP output packet accounting is') + state_enabled_disabled('ip_output_accounting')
+    ip_violation_accounting = Suppress('IP access violation accounting is') + state_enabled_disabled('ip_violation_accounting')
+    tcpip_header_compression = Suppress('TCP/IP header compression is') + state_enabled_disabled('tcpip_header_compression')
+    rtpip_header_compression = Suppress('RTP/IP header compression is') + state_enabled_disabled('rtpip_header_compression')
+    # TODO test with applied route-map
+    policyrouting = Suppress('Policy routing is disabled')
+    # TODO test with NAT
+    nat = Suppress('Network address translation is disabled')
+    # TODO
+    bgppolicy = Suppress('BGP Policy Mapping is disabled')
+    # TODO
+    input_features = Suppress('Input features: MCI Check')
+    # TODO
+    output_features = Suppress('Output features: CCE Post NAT Classification')
+    # TODO
+    wccp_outbound = Suppress('WCCP Redirect outbound is disabled')
+    # TODO
+    wccp_inbound = Suppress('WCCP Redirect inbound is disabled')
+    # TODO
+    wccp_exclude = Suppress('WCCP Redirect exclude is disabled')
+
+    # TODO account for multiple interfaces
+    # TODO Test IPv6
+    # TODO Test ip disabled -> "Internet protocol processing disabled"
+    parser = interface('interface') + Suppress('is') + Optional(Suppress('administratively')) + interfacestatus('interface_status') + Suppress(',') +\
+             Suppress('line protocol is') + line_status('line_status') +\
              Suppress('Internet address is') + ipprefix('ipaddress') +\
-             Suppress('Broadcast address is') + ipaddress('broadcastaddress')+\
+             Suppress('Broadcast address is') + ipaddress('broadcast_address')+\
              Suppress('Address determined by setup command')+\
              Suppress('MTU is') + mtu('mtu') + Suppress('bytes') +\
-             helperaddress
+             helper_address +\
+             directed_broadcasts +\
+             outgoing_acl +\
+             inbound_acl +\
+             proxyarp +\
+             local_proxyarp +\
+             securitylevel +\
+             splithorizon +\
+             icmp_redirects +\
+             icmp_unreachables +\
+             icmp_mask_replies +\
+             ipfastswitching +\
+             ipfastswitching_sameinterface +\
+             ipflowswitching +\
+             ipcefswitching +\
+             ipcefswitching_turboverctor +\
+             Optional(vrf) +\
+             Optional(downstreamvrf) +\
+             ip_multicast_fastswitching +\
+             ip_multicast_distributed_fastswitching +\
+             ip_routecache_flags +\
+             routerdiscovery +\
+             ip_output_accounting +\
+             ip_violation_accounting +\
+             tcpip_header_compression +\
+             rtpip_header_compression +\
+             policyrouting +\
+             nat +\
+             bgppolicy +\
+             input_features +\
+             output_features +\
+             wccp_outbound +\
+             wccp_inbound +\
+             wccp_exclude
 
+    return parser
+
+
+parse_show_ip_interface = partial(lambda x: show_ip_interface().parseString(x))
