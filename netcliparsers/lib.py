@@ -14,7 +14,7 @@
 # If you need to contact the author, you can do so by emailing:
 # jochenbartl [~at~] mailbox [/dot\] org
 
-from pyparsing import Word, alphanums, nums, ParseException, Combine
+from pyparsing import Word, alphanums, nums, ParseException, Combine, OneOrMore
 
 def parse_action_comma_list(tokens):
     try:
@@ -29,4 +29,13 @@ comma_list = Word(alphanums, bodyChars=alphanums + ',- ').setParseAction(parse_a
 
 # TODO This should be more strict
 ipaddress = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums))
+# def parse_action_ipaddress_list(tokens):
+#     try:
+#         return [e[0] for e in tokens]
+#     except ValueError, ve:
+#         raise ParseException("Invalid ipaddress list (%s)" % tokens[0])
+
+ipaddress_list = OneOrMore(ipaddress)
+#ipaddress_list.setParseAction(parse_action_ipaddress_list)
+
 ipprefix = Combine(ipaddress + '/' + Word(nums))

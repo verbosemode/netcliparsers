@@ -22,7 +22,7 @@ from functools import partial
 from pyparsing import alphas, alphanums, nums
 from pyparsing import Suppress, Keyword, Word, oneOf, ZeroOrMore, OneOrMore, Group, Combine, StringEnd, SkipTo, Optional, ParseException
 
-from netcliparsers.lib import comma_list, ipaddress, ipprefix
+from netcliparsers.lib import comma_list, ipaddress, ipaddress_list, ipprefix
 
 
 def show_class_map():
@@ -115,32 +115,39 @@ def show_cdp_neighbor_detail():
 
 parse_show_cdp_neighbor_detail = partial(lambda x: show_cdp_neighbor_detail().parseString(x))
 
-
 def show_ip_interface():
     # TODO move this to a seperate parser building blocks file
     # TODO combine them to IOS interface states??
     state_enabled_disabled = oneOf(['enabled', 'disabled'])
     state_always_never = oneOf(['always', 'never'])
+    acl_name = Word(alphanums, bodyChars=alphanums + '_')
 
     interface_name = Word(alphas, bodyChars=alphanums + '/.-')
     interface_status = oneOf(['up', 'down', 'deleted'])
     line_status = oneOf(['up', 'down'])
+
+    interface_ip_unnumbered = Suppress('Interface is unnumbered. Using address of ') +\
+                              interface_name('interface_unnumbered_name') +\
+                              Suppress('(') + ipaddress('interface_unnumbered_ipaddress') + Suppress(')')
+
+    interface_ip_prefix = Suppress('Internet address is') + ipprefix('ipprefix')
+
+    internet_address = (interface_ip_prefix | interface_ip_unnumbered)
+
     mtu = Word(nums).setParseAction(lambda tokens: int(tokens[0]))
+   
+    # FIXME Returns list of lists, instead of just a list with ipaddresses
+    helper_addresses = Suppress('Helper addresses are') + ipaddress_list('helper_addresses')
 
-    # TODO make sure 'helperaddress' is a list and contains zero or more items. Parser user shouldn't need to
-    # check if key exists in data structure
-    # FIXME Fails with multiple helper addresses
-    # helperaddress = Suppress('Helper address') | Suppress('Helper addresses') +\
-    #                 'is not set' | ('is' + ipaddress('helperaddress'))
-    # helper_address = Suppress('Helper address') | Suppress('Helper addresses') +\
-    #                 ('is not set' | ('is' + ipaddress('helperaddress')) | ('are' + OneOrMore(ipaddress)))
-    helper_address = Suppress('Helper address is not set')
+    helper_address = ipaddress
+    helper_address.setParseAction(lambda x: [x])
+    helper_address = Suppress('Helper address is')  + (Suppress('not set') | helper_address('helper_addresses'))
+    ip_helper = (helper_address | helper_addresses)
 
-    # FIXME
-    directed_broadcasts_acl = ' - but restricted by access list 111'
-    directed_broadcasts = Suppress('Directed broadcast forwarding is') + state_enabled_disabled('directed_broadcasts')
+    directed_broadcasts_acl = Suppress('- but restricted by access list') + acl_name('directed_broadcasts_acl')
+    directed_broadcasts = Suppress('Directed broadcast forwarding is') + state_enabled_disabled('directed_broadcasts') +\
+                          Optional(directed_broadcasts_acl)
 
-    acl_name = Word(alphanums, bodyChars=alphanums + '_')
     outgoing_acl = Suppress('Outgoing access list is') + (Suppress('not set') | acl_name('outbound_acl'))
     inbound_acl = Suppress('Inbound  access list is') + (Suppress('not set') | acl_name('inbound_acl'))
 
@@ -160,8 +167,10 @@ def show_ip_interface():
     ip_fast_switching_sameinterface = Suppress('IP fast switching on the same interface is') + state_enabled_disabled('ip_fast_switching_sameinterface')
     ip_flow_switching = Suppress('IP Flow switching is') + state_enabled_disabled('ip_flow_switching')
     ip_cef_switching = Suppress('IP CEF switching is') + state_enabled_disabled('ip_cef_switching')
-    ip_cef_switching_turbovector = Suppress('IP CEF switching turbo vector')
-    ip_cef_turbo_switching_turbo_fector = Suppress('IP CEF turbo switching turbo vector')
+
+    turbo_vector = oneOf(['CEF switching', 'CEF turbo switching', 'Null'])
+    ip_turbo_vector = Suppress('IP') + turbo_vector('ip_turbo_vector') +  Suppress('turbo vector')
+    ip_turbo_vector2 = Suppress('IP') + turbo_vector('ip_turbo_vector2') + Suppress('turbo vector')
 
     # TODO What are valid chars for VRF names?
     vrfname = Word(alphanums)
@@ -172,21 +181,27 @@ def show_ip_interface():
                                  state_enabled_disabled('ip_multicast_fastswitching')
     ip_multicast_distributed_fastswitching = Suppress('IP multicast distributed fast switching is') +\
                                              state_enabled_disabled('ip_multicast_distributed_fastswitching')
-    # TODO Custom parse Action
+
     ip_routecache_flags = Suppress('IP route-cache flags are') + comma_list('ip_routecache_flags')
     routerdiscovery = Suppress('Router Discovery is') + state_enabled_disabled('routerdiscovery')
     ip_output_accounting = Suppress('IP output packet accounting is') + state_enabled_disabled('ip_output_accounting')
     ip_violation_accounting = Suppress('IP access violation accounting is') + state_enabled_disabled('ip_violation_accounting')
     tcpip_header_compression = Suppress('TCP/IP header compression is') + state_enabled_disabled('tcpip_header_compression')
     rtpip_header_compression = Suppress('RTP/IP header compression is') + state_enabled_disabled('rtpip_header_compression')
-    # TODO test with applied route-map
-    policyrouting = Suppress('Policy routing is disabled')
+
+    routemap_name = Word(alphas, bodyChars=alphanums + '_-')
+    policy_routing_enabled = Suppress(', using route map') + routemap_name('policy_routing_routemap')
+    policy_routing = Suppress('Policy routing is') + state_enabled_disabled('policy_routing') + Optional(policy_routing_enabled)
 
     nat_inside_outside = oneOf(['inside', 'outside'])
     nat_domain = Suppress(', interface in domain') + nat_inside_outside('nat_domain')
     nat = Suppress('Network address translation is') + state_enabled_disabled('nat_state') + Optional(nat_domain)
-    # TODO
-    bgppolicy = Suppress('BGP Policy Mapping is disabled')
+
+    bgp_policy_map = Word(alphanums, bodyChars=alphanums + '-')
+    bgp_policies = Optional(Suppress('(output') + bgp_policy_map('bgp_policy_map_output') + Suppress(')')) +\
+                   Optional(Suppress('(input') + bgp_policy_map('bgp_policy_map_input') + Suppress(')'))
+
+    bgp_policy = Suppress('BGP Policy Mapping is') + state_enabled_disabled('bgp_policy') + bgp_policies
 
     input_features = Suppress('Input features:') + comma_list('input_features')
     output_features = Suppress('Output features:') + comma_list('output_features')
@@ -195,16 +210,14 @@ def show_ip_interface():
     wccp_inbound = Optional(Suppress('IPv4')) + Suppress('WCCP Redirect inbound is') + state_enabled_disabled('wccp_inbound')
     wccp_exclude = Optional(Suppress('IPv4')) + Suppress('WCCP Redirect exclude is') + state_enabled_disabled('wccp_exclude')
 
-    # TODO Test IPv6
-    # TODO Test ip disabled -> "Internet protocol processing disabled"
     interface = interface_name('interface_name') + Suppress('is') + Optional(Suppress('administratively')) +\
                                              interface_status('interface_status') + Suppress(',') +\
              Suppress('line protocol is') + line_status('line_status') +\
-             Suppress('Internet address is') + ipprefix('ipaddress') +\
+             internet_address +\
              Suppress('Broadcast address is') + ipaddress('broadcast_address')+\
-             Suppress('Address determined by setup command')+\
+             Optional(Suppress('Address determined by setup command')) +\
              Suppress('MTU is') + mtu('mtu') + Suppress('bytes') +\
-             helper_address +\
+             ip_helper +\
              directed_broadcasts +\
              outgoing_acl +\
              inbound_acl +\
@@ -219,8 +232,8 @@ def show_ip_interface():
              ip_fast_switching_sameinterface +\
              ip_flow_switching +\
              ip_cef_switching +\
-             ip_cef_switching_turbovector +\
-             Optional(ip_cef_turbo_switching_turbo_fector) +\
+             ip_turbo_vector +\
+             Optional(ip_turbo_vector2) +\
              Optional(vrf) +\
              Optional(downstreamvrf) +\
              ip_multicast_fastswitching +\
@@ -231,9 +244,9 @@ def show_ip_interface():
              ip_violation_accounting +\
              tcpip_header_compression +\
              rtpip_header_compression +\
-             policyrouting +\
+             policy_routing +\
              nat +\
-             bgppolicy +\
+             bgp_policy +\
              input_features +\
              Optional(output_features) +\
              wccp_outbound +\
