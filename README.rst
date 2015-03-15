@@ -23,6 +23,19 @@ Functions return a pyparsing parser instance.
     sw2.example.com GigabitEthernet0/2 GigabitEthernet0/26
 
 
+    parser = show_ip_interface()
+    for e in parser.parseString(text):
+        print("{interface_name}\tstate: {interface_status}\tline-state: {line_status}".format(**e))
+     
+    Embedded-Service-Engine0/0      state: down     line-state: down
+    GigabitEthernet0/0      state: up       line-state: up
+    GigabitEthernet0/0.10   state: up       line-state: up
+    GigabitEthernet0/0.20   state: up       line-state: up
+    GigabitEthernet0/1      state: up       line-state: up
+    GigabitEthernet0/1.10   state: deleted  line-state: down
+    GigabitEthernet0/1.20   state: deleted  line-state: down
+
+
 For convenience all functions also exist with a prepended *parse_*.
 
 ::

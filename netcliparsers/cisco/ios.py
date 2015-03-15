@@ -174,7 +174,7 @@ def show_ip_interface():
     ip_fast_switching_sameinterface = Suppress('IP fast switching on the same interface is') + state_enabled_disabled('ip_fast_switching_sameinterface')
     ip_flow_switching = Suppress('IP Flow switching is') + state_enabled_disabled('ip_flow_switching')
     ip_cef_switching = Suppress('IP CEF switching is') + state_enabled_disabled('ip_cef_switching')
-    ip_cef_switching_turboverctor = Suppress('IP CEF switching turbo vector')
+    ip_cef_switching_turbovector = Suppress('IP CEF switching turbo vector')
 
     # TODO What are valid chars for VRF names?
     vrfname = Word(alphanums)
@@ -232,7 +232,7 @@ def show_ip_interface():
              ip_fast_switching_sameinterface +\
              ip_flow_switching +\
              ip_cef_switching +\
-             ip_cef_switching_turboverctor +\
+             ip_cef_switching_turbovector +\
              Optional(vrf) +\
              Optional(downstreamvrf) +\
              ip_multicast_fastswitching +\
