@@ -63,11 +63,16 @@ TODO
 * Add small guide on how to debug parse errors with pyparsing
 
   - Incremental testing of individual pieces of the parser
+
     - text = '192.0.2.1'
     - parser.parseString(text)
+
   - text.split('\n')[30]
+
     - If parser failed in text output on line 29
+
   - text[18:39]
+
     - If parser failed at character 28
     - Have a look at lines +/- at where the parser failed
 
