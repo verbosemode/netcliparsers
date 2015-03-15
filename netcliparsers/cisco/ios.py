@@ -22,6 +22,8 @@ from functools import partial
 from pyparsing import alphas, alphanums, nums
 from pyparsing import Suppress, Keyword, Word, oneOf, ZeroOrMore, OneOrMore, Group, Combine, StringEnd, SkipTo, Optional, ParseException
 
+from netcliparsers.lib import comma_list, ipaddress, ipprefix
+
 
 def show_class_map():
     """
@@ -115,29 +117,14 @@ parse_show_cdp_neighbor_detail = partial(lambda x: show_cdp_neighbor_detail().pa
 
 
 def show_ip_interface():
-    # Move to parser building blocks file
-    def parse_action_comma_list(tokens):
-        try:
-            l = tokens[0].split(',')
-
-            return [e.strip() for e in l]
-        except ValueError, ve:
-            raise ParseException("Invalid comma list (%s)" % tokens[0])
-
     # TODO move this to a seperate parser building blocks file
     # TODO combine them to IOS interface states??
     state_enabled_disabled = oneOf(['enabled', 'disabled'])
     state_always_never = oneOf(['always', 'never'])
 
-    comma_list = Word(alphanums, bodyChars=alphanums + ', ').setParseAction(parse_action_comma_list)
-
     interface_name = Word(alphas, bodyChars=alphanums + '/.-')
     interface_status = oneOf(['up', 'down', 'deleted'])
     line_status = oneOf(['up', 'down'])
-    # TODO move this to a seperate parser building blocks file
-    ipaddress = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums))
-    # TODO move this to a seperate parser building blocks file
-    ipprefix = Combine(Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '.' + Word(nums) + '/' + Word(nums))
     mtu = Word(nums).setParseAction(lambda tokens: int(tokens[0]))
 
     # TODO make sure 'helperaddress' is a list and contains zero or more items. Parser user shouldn't need to
@@ -153,10 +140,9 @@ def show_ip_interface():
     directed_broadcasts_acl = ' - but restricted by access list 111'
     directed_broadcasts = Suppress('Directed broadcast forwarding is') + state_enabled_disabled('directed_broadcasts')
 
-    # TODO
-    outgoing_acl = Suppress('Outgoing access list is not set')
-    # TODO
-    inbound_acl = Suppress('Inbound  access list is not set')
+    acl_name = Word(alphanums, bodyChars=alphanums + '_')
+    outgoing_acl = Suppress('Outgoing access list is') + (Suppress('not set') | acl_name('outbound_acl'))
+    inbound_acl = Suppress('Inbound  access list is') + (Suppress('not set') | acl_name('inbound_acl'))
 
     proxyarp = Suppress('Proxy ARP is') + state_enabled_disabled('proxyarp')
 
@@ -175,6 +161,7 @@ def show_ip_interface():
     ip_flow_switching = Suppress('IP Flow switching is') + state_enabled_disabled('ip_flow_switching')
     ip_cef_switching = Suppress('IP CEF switching is') + state_enabled_disabled('ip_cef_switching')
     ip_cef_switching_turbovector = Suppress('IP CEF switching turbo vector')
+    ip_cef_turbo_switching_turbo_fector = Suppress('IP CEF turbo switching turbo vector')
 
     # TODO What are valid chars for VRF names?
     vrfname = Word(alphanums)
@@ -194,19 +181,19 @@ def show_ip_interface():
     rtpip_header_compression = Suppress('RTP/IP header compression is') + state_enabled_disabled('rtpip_header_compression')
     # TODO test with applied route-map
     policyrouting = Suppress('Policy routing is disabled')
-    # TODO test with NAT
-    nat = Suppress('Network address translation is disabled')
+
+    nat_inside_outside = oneOf(['inside', 'outside'])
+    nat_domain = Suppress(', interface in domain') + nat_inside_outside('nat_domain')
+    nat = Suppress('Network address translation is') + state_enabled_disabled('nat_state') + Optional(nat_domain)
     # TODO
     bgppolicy = Suppress('BGP Policy Mapping is disabled')
 
     input_features = Suppress('Input features:') + comma_list('input_features')
     output_features = Suppress('Output features:') + comma_list('output_features')
-    # TODO
-    wccp_outbound = Suppress('WCCP Redirect outbound is disabled')
-    # TODO
-    wccp_inbound = Suppress('WCCP Redirect inbound is disabled')
-    # TODO
-    wccp_exclude = Suppress('WCCP Redirect exclude is disabled')
+
+    wccp_outbound = Optional(Suppress('IPv4')) + Suppress('WCCP Redirect outbound is') + state_enabled_disabled('wccp_outbound')
+    wccp_inbound = Optional(Suppress('IPv4')) + Suppress('WCCP Redirect inbound is') + state_enabled_disabled('wccp_inbound')
+    wccp_exclude = Optional(Suppress('IPv4')) + Suppress('WCCP Redirect exclude is') + state_enabled_disabled('wccp_exclude')
 
     # TODO Test IPv6
     # TODO Test ip disabled -> "Internet protocol processing disabled"
@@ -233,6 +220,7 @@ def show_ip_interface():
              ip_flow_switching +\
              ip_cef_switching +\
              ip_cef_switching_turbovector +\
+             Optional(ip_cef_turbo_switching_turbo_fector) +\
              Optional(vrf) +\
              Optional(downstreamvrf) +\
              ip_multicast_fastswitching +\
