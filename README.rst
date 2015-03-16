@@ -3,6 +3,8 @@ netcliparsers - Parser library for screen scraping CLI output from network devic
 
 This will become a library of parsers based on `pyparsing <http://pyparsing.wikispaces.com/>`_ for parsing screen scraped CLI text output from network devices.
 
+**NOT PRODUCTION READY**, yet. Please be aware, that data returned by parsers might change from one commit to the other at the moment.
+As soon as tests are in place and I have more parsers ready, I'll try to keep the interfaces and return data stable.
 
 Usage Examples
 --------------
@@ -36,7 +38,7 @@ Functions return a pyparsing parser instance.
     GigabitEthernet0/1.20   state: deleted  line-state: down
 
 
-For convenience all functions also exist with a prepended *parse_*.
+For convenience all functions also exist with a prepended **parse_**.
 
 ::
 
